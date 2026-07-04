@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Category {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  order         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  templateTasks TemplateTask[]
+  tasks         Task[]
+}
+
+model WeeklyTemplate {
+  id        Int            @id @default(autoincrement())
+  dayOfWeek String         @unique // "Monday".."Sunday"
+  createdAt DateTime       @default(now())
+  tasks     TemplateTask[]
+}
+
+model TemplateTask {
+  id         Int               @id @default(autoincrement())
+  templateId Int
+  template   WeeklyTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  categoryId Int?
+  category   Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title      String
+  order      Int               @default(0)
+  subTasks   TemplateSubTask[]
+}
+
+model TemplateSubTask {
+  id             Int          @id @default(autoincrement())
+  templateTaskId Int
+  templateTask   TemplateTask @relation(fields: [templateTaskId], references: [id], onDelete: Cascade)
+  title          String
+  order          Int          @default(0)
+}
+
+model DailyLog {
+  id       Int      @id @default(autoincrement())
+  date     DateTime @unique // stored at 00:00:00 local, date-only semantics
+  progress Float    @default(0)
+  tasks    Task[]
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  dailyLogId  Int
+  dailyLog    DailyLog  @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title       String
+  isCompleted Boolean   @default(false)
+  order       Int       @default(0)
+  subTasks    SubTask[]
+}
+
+model SubTask {
+  id          Int     @id @default(autoincrement())
+  taskId      Int
+  task        Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title       String
+  isCompleted Boolean @default(false)
+  order       Int     @default(0)
+}
