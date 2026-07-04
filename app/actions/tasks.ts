@@ -60,6 +60,10 @@ export async function addSubTask(taskId: number, title: string): Promise<void> {
       order: count,
     },
   });
+  // A freshly created subtask always starts incomplete, so the parent can
+  // never honestly remain complete — demote it to keep the parent/child
+  // invariant intact (mirrors toggleSubTask/deleteSubTask).
+  await prisma.task.update({ where: { id: taskId }, data: { isCompleted: false } });
   await recomputeAndSaveProgress(task.dailyLogId);
   revalidatePath("/");
 }
