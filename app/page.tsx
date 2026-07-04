@@ -1,14 +1,56 @@
-import { Card } from "@/components/ui/Card";
+import { getDay, getCategories } from "@/lib/queries";
+import { computeProgress, computeCategoryBreakdown, type ProgressTask } from "@/lib/progress";
+import { toKey } from "@/lib/date";
+import { ProgressHeader } from "@/components/dashboard/ProgressHeader";
+import { CategorySummary } from "@/components/dashboard/CategorySummary";
+import { TaskList } from "@/components/dashboard/TaskList";
+import type { TaskViewModel } from "@/components/dashboard/TaskRow";
 
-export default function Home() {
+export default async function Home() {
+  const today = new Date();
+  const day = await getDay(today);
+  const categories = await getCategories();
+
+  const progressTasks: ProgressTask[] = day.tasks.map((task) => ({
+    isCompleted: task.isCompleted,
+    categoryId: task.categoryId,
+    subTasks: task.subTasks.map((sub) => ({ isCompleted: sub.isCompleted })),
+  }));
+
+  const progress = computeProgress(progressTasks);
+  const breakdown = computeCategoryBreakdown(progressTasks);
+
+  const totalLeaves = breakdown.reduce((sum, b) => sum + b.total, 0);
+  const completedLeaves = breakdown.reduce((sum, b) => sum + b.completed, 0);
+
+  const taskViewModels: TaskViewModel[] = day.tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    isCompleted: task.isCompleted,
+    categoryName: task.category?.name ?? null,
+    subTasks: task.subTasks.map((sub) => ({
+      id: sub.id,
+      title: sub.title,
+      isCompleted: sub.isCompleted,
+    })),
+  }));
+
+  const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
+
   return (
-    <main className="py-8">
-      <Card>
-        <h1 className="text-lg font-semibold text-black">Today</h1>
-        <p className="mt-2 text-sm text-black/50">
-          Your daily habit dashboard will live here.
-        </p>
-      </Card>
+    <main className="flex flex-col gap-6 py-8">
+      <ProgressHeader
+        date={today}
+        progress={progress}
+        completedLeaves={completedLeaves}
+        totalLeaves={totalLeaves}
+      />
+      <CategorySummary breakdown={breakdown} categories={categoryOptions} />
+      <TaskList
+        tasks={taskViewModels}
+        dateKey={toKey(today)}
+        categories={categoryOptions}
+      />
     </main>
   );
 }
