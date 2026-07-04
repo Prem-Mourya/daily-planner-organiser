@@ -18,6 +18,11 @@ describe("computeProgress", () => {
     const tasks = [t(false, 1, [true, false]), t(true, 2)];
     expect(computeProgress(tasks)).toBe(67);
   });
+
+  it("ignores a with-children parent's own isCompleted flag", () => {
+    // parent flag true but only 1 of 2 subtasks done => 50%, not 100%
+    expect(computeProgress([t(true, 1, [true, false])])).toBe(50);
+  });
 });
 
 describe("taskIsComplete", () => {
@@ -41,5 +46,18 @@ describe("computeCategoryBreakdown", () => {
     const b = computeCategoryBreakdown(tasks);
     expect(b[0]).toEqual({ categoryId: 1, total: 3, completed: 1, incomplete: 2, percent: 33 });
     expect(b[1]).toEqual({ categoryId: 2, total: 1, completed: 1, incomplete: 0, percent: 100 });
+  });
+
+  it("puts uncategorized (null) tasks in their own bucket", () => {
+    const b = computeCategoryBreakdown([t(true, null), t(false, null)]);
+    expect(b).toEqual([{ categoryId: null, total: 2, completed: 1, incomplete: 1, percent: 50 }]);
+  });
+
+  it("breaks incomplete ties by percent ascending (weaker % first)", () => {
+    // both categories have incomplete=1; cat 2 at 50% ranks before cat 1 at 75%
+    const tasks = [t(false, 1, [true, true, true, false]), t(false, 2, [true, false])];
+    const b = computeCategoryBreakdown(tasks);
+    expect(b[0]).toEqual({ categoryId: 2, total: 2, completed: 1, incomplete: 1, percent: 50 });
+    expect(b[1]).toEqual({ categoryId: 1, total: 4, completed: 3, incomplete: 1, percent: 75 });
   });
 });
