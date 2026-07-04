@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { AnimatePresence, Reorder } from "framer-motion";
 import { Card } from "@/components/ui/Card";
 import { TaskRow, type TaskViewModel } from "@/components/dashboard/TaskRow";
+import { AddTaskInline } from "@/components/dashboard/AddTaskInline";
+import { reorderTasks } from "@/app/actions/tasks";
 import { fireConfetti } from "@/lib/confetti";
 import { computeProgress } from "@/lib/progress";
 
@@ -19,6 +21,8 @@ export function TaskList({
   categories: CategoryOption[];
 }) {
   const [editMode, setEditMode] = useState(false);
+  const [order, setOrder] = useState<TaskViewModel[]>(tasks);
+  const [, startTransition] = useTransition();
   const dayProgress = computeProgress(
     tasks.map((t) => ({
       isCompleted: t.isCompleted,
@@ -36,10 +40,18 @@ export function TaskList({
     wasFullyDone.current = fullyDone;
   }, [dayProgress, tasks.length]);
 
-  // Reserved for Task 8 (add/reorder/delete UI); categories/dateKey are
-  // threaded through now so that work doesn't need another prop wiring pass.
-  void dateKey;
-  void categories;
+  // Resync local order state whenever the server-provided task list changes
+  // (e.g. after add/delete/toggle revalidation).
+  useEffect(() => {
+    setOrder(tasks);
+  }, [tasks]);
+
+  function handleReorder(next: TaskViewModel[]) {
+    setOrder(next);
+    startTransition(async () => {
+      await reorderTasks(next.map((t) => t.id));
+    });
+  }
 
   return (
     <Card>
@@ -54,19 +66,47 @@ export function TaskList({
         </button>
       </div>
 
-      {tasks.length === 0 ? (
+      {order.length === 0 && !editMode ? (
         <p className="mt-4 text-sm text-black/40">
           No tasks for today yet. Add some to your weekly plan to see them here.
         </p>
+      ) : editMode ? (
+        <Reorder.Group
+          as="ul"
+          axis="y"
+          values={order}
+          onReorder={handleReorder}
+          className="mt-2 flex flex-col"
+        >
+          <AnimatePresence initial={false}>
+            {order.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                editMode={editMode}
+                categories={categories}
+              />
+            ))}
+          </AnimatePresence>
+        </Reorder.Group>
       ) : (
         <ul className="mt-2 flex flex-col">
           <AnimatePresence initial={false}>
-            {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
+            {order.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                editMode={editMode}
+                categories={categories}
+              />
             ))}
           </AnimatePresence>
         </ul>
       )}
+
+      {editMode ? (
+        <AddTaskInline dateKey={dateKey} categories={categories} />
+      ) : null}
     </Card>
   );
 }

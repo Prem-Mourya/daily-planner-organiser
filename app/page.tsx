@@ -27,6 +27,7 @@ export default async function Home() {
     id: task.id,
     title: task.title,
     isCompleted: task.isCompleted,
+    categoryId: task.categoryId,
     categoryName: task.category?.name ?? null,
     subTasks: task.subTasks.map((sub) => ({
       id: sub.id,
