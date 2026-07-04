@@ -47,14 +47,32 @@ Template side and Instance side are **fully separate tables** with real
 relations (not JSON blobs) for clean querying, sorting, and analytics.
 
 ```
+Category         { id, name (unique), order, createdAt }
+
 WeeklyTemplate   { id, dayOfWeek (unique: Monday..Sunday), createdAt }
-TemplateTask     { id, templateId -> WeeklyTemplate, title, order }
+TemplateTask     { id, templateId -> WeeklyTemplate, categoryId? -> Category, title, order }
 TemplateSubTask  { id, templateTaskId -> TemplateTask, title, order }
 
 DailyLog         { id, date (unique, date-only), progress (Float) }
-Task             { id, dailyLogId -> DailyLog, title, isCompleted (Bool), order }
+Task             { id, dailyLogId -> DailyLog, categoryId? -> Category, title, isCompleted (Bool), order }
 SubTask          { id, taskId -> Task, title, isCompleted (Bool), order }
 ```
+
+### Categories
+
+- A **managed list** of categories (e.g. Health, Study, Self Care, Work),
+  maintained by the user. Assigned from a dropdown when creating/editing a task.
+- Category lives on the **parent task** (`TemplateTask.categoryId` /
+  `Task.categoryId`). **Subtasks inherit** their parent's category — they have
+  no category field of their own.
+- `categoryId` is **nullable**: a task may be "Uncategorized", which forms its
+  own bucket in the breakdown.
+- When a day is materialized from a template, each `Task` copies the
+  `categoryId` from its `TemplateTask`. Category assignment on a specific day is
+  editable for that day only (does not touch the template), consistent with the
+  Template-vs-Instance rule.
+- Categories referenced by tasks cannot be hard-deleted; deleting a category
+  sets referencing tasks back to Uncategorized (`onDelete: SetNull`).
 
 **Lazy instantiation:** A `DailyLog` for a date is materialized the first time
 that day is opened. We read that weekday's `WeeklyTemplate` and copy its
@@ -83,6 +101,20 @@ leaves = 3, completed = 2 → 67%.
 Progress is recomputed and persisted to `DailyLog.progress` on every mutation so
 analytics can read historical values directly.
 
+### Category Completion Breakdown
+
+The same leaf-counting model is grouped by category to show **where
+incompletion concentrates**:
+
+- For each category: `total leaves` = all leaves under that category's parent
+  tasks; `completed leaves` = those done.
+- **Category completion % = completed / total leaves** in that category.
+- **Incomplete volume = total − completed leaves** — the raw count of unfinished
+  items, used to rank "where most incompletion is coming from" (e.g. Self Care /
+  Health surfacing above Study).
+- Breakdown is presented sorted by incomplete volume (worst first), each row
+  showing category name, completion %, and completed/total counts.
+
 ## Parent/Child Checkbox Behavior
 
 - Check a parent → checks all of its children.
@@ -106,12 +138,18 @@ analytics can read historical values directly.
 - Hierarchical tasks: parents expand/collapse to reveal children; native
   checkboxes on both levels; append new child tasks on the fly.
 - **"Edit Today's Plan"**: inline edit mode to add / edit / delete / reorder
-  tasks and subtasks for that specific calendar day only, without altering the
-  weekly template.
+  tasks and subtasks (and set each parent task's category) for that specific
+  calendar day only, without altering the weekly template.
+- **Today by category**: a compact summary card showing today's completion
+  broken down per category (name, %, completed/total), sorted worst-first so the
+  lagging area — e.g. Health / Self Care — stands out at a glance.
 
 ### `/template` — Weekly Master Planner (Feature A)
 - 7-day (Monday–Sunday) configurator for the baseline recurring routine.
-- Add, sort/reorder, and nest sub-tasks within baseline items.
+- Add, sort/reorder, and nest sub-tasks within baseline items; assign a category
+  to each baseline (parent) task from the managed list.
+- A small **category manager** (add / rename / reorder / remove categories) lives
+  here too.
 - Editing the template changes what populates future days only.
 
 ### `/stats` — Analytics & Stats Dashboard (Feature D)
@@ -121,6 +159,12 @@ Tabbed views, all via Recharts, in the monochrome style:
 - **Monthly:** GitHub-style contribution grid showing consistency across the
   month.
 - **Yearly:** broad high-level progress tracking.
+
+**Category breakdown (cross-cutting):** a dedicated panel showing completion by
+category over the selected timeframe — ranked by incomplete volume so the
+weakest areas surface first — with per-category completion % and a small
+trend/bar per category. This is the "which sections do most of my incompletion
+come from" view (Health/Self Care vs Study, etc.).
 
 ## Deferred: Notifications (Feature E)
 
