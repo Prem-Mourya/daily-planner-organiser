@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { toKey } from "@/lib/date";
 import type { ProgressTask } from "@/lib/progress";
-import type { DayPoint } from "@/lib/stats";
+import { bucketDaily } from "@/lib/stats";
 import { StatsTabs } from "@/components/stats/StatsTabs";
 
 export default async function StatsPage() {
@@ -14,25 +14,17 @@ export default async function StatsPage() {
     },
   });
 
-  const points: DayPoint[] = logs.map((log) => {
-    let total = 0;
-    let completed = 0;
-    for (const task of log.tasks) {
-      if (task.subTasks.length === 0) {
-        total += 1;
-        if (task.isCompleted) completed += 1;
-      } else {
-        total += task.subTasks.length;
-        completed += task.subTasks.filter((s) => s.isCompleted).length;
-      }
-    }
-    return {
-      date: toKey(log.date),
-      total,
-      completed,
-      percent: Math.round(log.progress),
-    };
-  });
+  const points = bucketDaily(
+    logs.map((log) => ({
+      dateKey: toKey(log.date),
+      progress: log.progress,
+      tasks: log.tasks.map((task) => ({
+        isCompleted: task.isCompleted,
+        categoryId: task.categoryId,
+        subTasks: task.subTasks.map((s) => ({ isCompleted: s.isCompleted })),
+      })),
+    }))
+  );
 
   const rangeTasks: ProgressTask[] = logs.flatMap((log) =>
     log.tasks.map((task) => ({

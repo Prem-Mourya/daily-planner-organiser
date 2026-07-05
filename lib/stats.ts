@@ -1,6 +1,26 @@
-import { computeCategoryBreakdown, type ProgressTask, type CategoryBucket } from "./progress";
+import { computeCategoryBreakdown, leafTotals, type ProgressTask, type CategoryBucket } from "./progress";
 
 export type DayPoint = { date: string; total: number; completed: number; percent: number };
+
+/**
+ * Builds daily DayPoints from raw day records: leaf-counts each day's tasks via
+ * `leafTotals` (reusing the same leaf-counting rules as `computeProgress`), and
+ * takes `percent` directly from the day's stored `progress` (independent of the
+ * leaf counts computed here). Pure — no Prisma/DB access.
+ */
+export function bucketDaily(
+  days: { dateKey: string; progress: number; tasks: ProgressTask[] }[]
+): DayPoint[] {
+  return days.map((day) => {
+    const { total, completed } = leafTotals(day.tasks);
+    return {
+      date: day.dateKey,
+      total,
+      completed,
+      percent: Math.round(day.progress),
+    };
+  });
+}
 
 /**
  * Parses a "YYYY-MM-DD" date-key string into a UTC-anchored Date at midnight.

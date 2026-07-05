@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeProgress, computeCategoryBreakdown, taskIsComplete } from "./progress";
+import { computeProgress, computeCategoryBreakdown, taskIsComplete, leafTotals } from "./progress";
 
 const t = (isCompleted: boolean, categoryId: number | null, subs: boolean[] = []) => ({
   isCompleted, categoryId, subTasks: subs.map((c) => ({ isCompleted: c })),
@@ -33,6 +33,18 @@ describe("taskIsComplete", () => {
   it("with children: true only when all subtasks complete", () => {
     expect(taskIsComplete(t(false, 1, [true, true]))).toBe(true);
     expect(taskIsComplete(t(true, 1, [true, false]))).toBe(false);
+  });
+});
+
+describe("leafTotals", () => {
+  it("sums leaves across mixed childless and subtasked tasks", () => {
+    // childless done (1/1) + childless not done (0/1) + 2 subtasks 1 done (1/2)
+    const tasks = [t(true, 1), t(false, 2), t(false, 3, [true, false])];
+    expect(leafTotals(tasks)).toEqual({ total: 4, completed: 2 });
+  });
+
+  it("returns zeroes for no tasks", () => {
+    expect(leafTotals([])).toEqual({ total: 0, completed: 0 });
   });
 });
 

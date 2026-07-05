@@ -3,6 +3,7 @@ import {
   bucketWeekly,
   bucketMonthlyGrid,
   bucketYearly,
+  bucketDaily,
   aggregateCategoryOverRange,
   type DayPoint,
 } from "./stats";
@@ -10,6 +11,42 @@ import {
 function p(date: string, total: number, completed: number, percent: number): DayPoint {
   return { date, total, completed, percent };
 }
+
+const task = (isCompleted: boolean, subs: boolean[] = []) => ({
+  isCompleted,
+  categoryId: null,
+  subTasks: subs.map((c) => ({ isCompleted: c })),
+});
+
+describe("bucketDaily", () => {
+  it("counts a childless completed task as one done leaf", () => {
+    const result = bucketDaily([{ dateKey: "2026-07-01", progress: 100, tasks: [task(true)] }]);
+    expect(result).toEqual([p("2026-07-01", 1, 1, 100)]);
+  });
+
+  it("counts a childless incomplete task as one undone leaf", () => {
+    const result = bucketDaily([{ dateKey: "2026-07-01", progress: 0, tasks: [task(false)] }]);
+    expect(result).toEqual([p("2026-07-01", 1, 0, 0)]);
+  });
+
+  it("counts a task with 2 subtasks, 1 done, as total 2 / completed 1", () => {
+    const result = bucketDaily([
+      { dateKey: "2026-07-01", progress: 50, tasks: [task(false, [true, false])] },
+    ]);
+    expect(result).toEqual([p("2026-07-01", 2, 1, 50)]);
+  });
+
+  it("takes percent from the passed progress, independent of leaf counts", () => {
+    const result = bucketDaily([
+      { dateKey: "2026-07-01", progress: 42, tasks: [task(false, [true, false])] },
+    ]);
+    expect(result[0].percent).toBe(42);
+  });
+
+  it("returns an empty array for no days", () => {
+    expect(bucketDaily([])).toEqual([]);
+  });
+});
 
 describe("bucketWeekly", () => {
   it("averages daily percents into ISO-week groups", () => {

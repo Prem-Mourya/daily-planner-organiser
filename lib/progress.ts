@@ -27,12 +27,18 @@ export function taskIsComplete(task: ProgressTask): boolean {
   return total === completed;
 }
 
-export function computeProgress(tasks: ProgressTask[]): number {
+/** Sums leaf totals/completed counts across all tasks (childless tasks count as one leaf each). */
+export function leafTotals(tasks: ProgressTask[]): { total: number; completed: number } {
   let total = 0, completed = 0;
   for (const task of tasks) {
     const c = leafCounts(task);
     total += c.total; completed += c.completed;
   }
+  return { total, completed };
+}
+
+export function computeProgress(tasks: ProgressTask[]): number {
+  const { total, completed } = leafTotals(tasks);
   if (total === 0) return 0;
   return Math.round((completed / total) * 100);
 }
