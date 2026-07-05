@@ -39,7 +39,7 @@ export default async function Home() {
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
 
   return (
-    <main className="flex flex-col gap-6 py-8">
+    <main className="mx-auto flex max-w-2xl flex-col gap-6 py-8">
       <ProgressHeader
         date={today}
         progress={progress}

@@ -21,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="mx-auto max-w-2xl px-4 sm:px-6">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <Nav />
           {children}
         </div>

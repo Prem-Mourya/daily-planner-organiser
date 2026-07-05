@@ -36,7 +36,7 @@ export default async function TemplatePage() {
     <main className="flex flex-col gap-6 py-8">
       <CategoryManager categories={categoryOptions} />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {DAY_ORDER.map((dayOfWeek) => {
           const template = byDay.get(dayOfWeek);
           const taskViewModels: TemplateTaskViewModel[] =

@@ -98,7 +98,7 @@ function TemplateSubTaskRow({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-black/70 outline-none transition-colors duration-150 hover:border-black/10 focus:border-black/30"
+          className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-black/70 outline-none transition-colors duration-150 hover:border-black/10 focus:border-black/30"
         />
 
         <button
@@ -142,7 +142,7 @@ function AddTemplateSubTaskInline({ templateTaskId }: { templateTaskId: number }
             submit();
           }
         }}
-        className="flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-black/60 outline-none transition-colors duration-150 placeholder:text-black/30 hover:border-black/10 focus:border-black/30 disabled:opacity-40"
+        className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm text-black/60 outline-none transition-colors duration-150 placeholder:text-black/30 hover:border-black/10 focus:border-black/30 disabled:opacity-40"
       />
       <button
         type="button"
@@ -247,7 +247,7 @@ function TemplateTaskRow({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-black outline-none transition-colors duration-150 hover:border-black/10 focus:border-black/30"
+          className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-black outline-none transition-colors duration-150 hover:border-black/10 focus:border-black/30"
         />
 
         <CategoryPicker
@@ -339,8 +339,7 @@ function AddTemplateTaskInline({
   }
 
   return (
-    <div className="flex items-center gap-2 pt-3">
-      <div className="h-6 w-4 shrink-0" />
+    <div className="flex flex-col gap-2 pt-3">
       <input
         type="text"
         value={title}
@@ -353,22 +352,24 @@ function AddTemplateTaskInline({
             submit();
           }
         }}
-        className="flex-1 rounded-lg border border-black/10 bg-transparent px-2.5 py-1.5 text-sm text-black outline-none placeholder:text-black/30 focus:border-black/30 disabled:opacity-40"
+        className="w-full rounded-lg border border-black/10 bg-transparent px-2.5 py-1.5 text-sm text-black outline-none placeholder:text-black/30 focus:border-black/30 disabled:opacity-40"
       />
-      <CategoryPicker
-        categories={categories}
-        value={categoryId}
-        onChange={setCategoryId}
-        disabled={isPending}
-      />
-      <button
-        type="button"
-        disabled={isPending || !title.trim()}
-        onClick={submit}
-        className="shrink-0 rounded-full border border-black/15 px-3 py-1.5 text-xs font-medium text-black transition-colors duration-150 hover:bg-black/5 disabled:opacity-40"
-      >
-        + Add
-      </button>
+      <div className="flex items-center justify-end gap-2">
+        <CategoryPicker
+          categories={categories}
+          value={categoryId}
+          onChange={setCategoryId}
+          disabled={isPending}
+        />
+        <button
+          type="button"
+          disabled={isPending || !title.trim()}
+          onClick={submit}
+          className="shrink-0 rounded-full border border-black/15 px-3 py-1.5 text-xs font-medium text-black transition-colors duration-150 hover:bg-black/5 disabled:opacity-40"
+        >
+          + Add
+        </button>
+      </div>
     </div>
   );
 }
