@@ -36,12 +36,15 @@ export function TaskRow({
   task,
   editMode = false,
   categories = [],
+  expanded = false,
+  onToggleExpand,
 }: {
   task: TaskViewModel;
   editMode?: boolean;
   categories?: CategoryOption[];
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
@@ -160,7 +163,7 @@ export function TaskRow({
           <button
             type="button"
             className="flex flex-1 items-center justify-between gap-2 text-left"
-            onClick={() => hasSubTasks && setExpanded((v) => !v)}
+            onClick={() => hasSubTasks && onToggleExpand?.()}
           >
             <span className="relative text-sm font-medium text-black">
               {task.title}
@@ -202,7 +205,7 @@ export function TaskRow({
           <motion.button
             type="button"
             aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => onToggleExpand?.()}
             animate={{ rotate: expanded ? 90 : 0 }}
             transition={{ duration: 0.2 }}
             className="flex h-6 w-6 shrink-0 items-center justify-center text-black/40"

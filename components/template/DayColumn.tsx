@@ -15,6 +15,7 @@ import {
   reorderTemplateTasks,
   reorderTemplateSubTasks,
   resetTemplateDay,
+  copyTemplateDay,
 } from "@/app/actions/template";
 
 export type TemplateSubTaskViewModel = {
@@ -379,14 +380,28 @@ export function DayColumn({
   dayOfWeek,
   tasks,
   categories,
+  copiedFrom = null,
+  onCopy,
 }: {
   dayOfWeek: string;
   tasks: TemplateTaskViewModel[];
   categories: CategoryOption[];
+  copiedFrom?: string | null;
+  onCopy?: (day: string | null) => void;
 }) {
   const [order, setOrder] = useState<TemplateTaskViewModel[]>(tasks);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [confirmingReset, setConfirmingReset] = useState(false);
+
+  const isCopySource = copiedFrom === dayOfWeek;
+  const canPaste = copiedFrom !== null && copiedFrom !== dayOfWeek;
+
+  function handlePaste() {
+    if (copiedFrom === null) return;
+    startTransition(async () => {
+      await copyTemplateDay(copiedFrom, dayOfWeek);
+    });
+  }
 
   // Resync local order state whenever the server-provided task list changes
   // (e.g. after add/delete/reorder revalidation), avoiding Reorder staleness.
@@ -421,16 +436,37 @@ export function DayColumn({
     <Card>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-black">{dayOfWeek}</h2>
-        {order.length > 0 ? (
-          <button
-            type="button"
-            onClick={handleReset}
-            onBlur={() => setConfirmingReset(false)}
-            className="shrink-0 rounded-full border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 transition-colors duration-150 hover:bg-black/5"
-          >
-            {confirmingReset ? "Confirm reset?" : "Reset"}
-          </button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {canPaste ? (
+            <button
+              type="button"
+              onClick={handlePaste}
+              disabled={isPending}
+              className="rounded-full border border-black/80 bg-black px-2.5 py-1 text-xs font-medium text-white transition-colors duration-150 hover:bg-black/80 disabled:opacity-50"
+            >
+              {isPending ? "Pasting…" : `Paste ${copiedFrom}`}
+            </button>
+          ) : null}
+          {onCopy && order.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => onCopy(isCopySource ? null : dayOfWeek)}
+              className="rounded-full border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 transition-colors duration-150 hover:bg-black/5"
+            >
+              {isCopySource ? "Copied ✓" : "Copy"}
+            </button>
+          ) : null}
+          {order.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleReset}
+              onBlur={() => setConfirmingReset(false)}
+              className="rounded-full border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 transition-colors duration-150 hover:bg-black/5"
+            >
+              {confirmingReset ? "Confirm reset?" : "Reset"}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {order.length === 0 ? (

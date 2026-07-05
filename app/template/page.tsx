@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { getCategories } from "@/lib/queries";
 import { CategoryManager } from "@/components/template/CategoryManager";
-import { DayColumn, type TemplateTaskViewModel } from "@/components/template/DayColumn";
+import type { TemplateTaskViewModel } from "@/components/template/DayColumn";
+import { DayBoard, type DayData } from "@/components/template/DayBoard";
 
 // Reads live template/category state — render per request, not at build time.
 export const dynamic = "force-dynamic";
@@ -35,35 +36,23 @@ export default async function TemplatePage() {
   const byDay = new Map(templates.map((t) => [t.dayOfWeek, t]));
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
 
+  const days: DayData[] = DAY_ORDER.map((dayOfWeek) => {
+    const template = byDay.get(dayOfWeek);
+    const tasks: TemplateTaskViewModel[] =
+      template?.tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        categoryId: task.categoryId,
+        categoryName: task.category?.name ?? null,
+        subTasks: task.subTasks.map((sub) => ({ id: sub.id, title: sub.title })),
+      })) ?? [];
+    return { dayOfWeek, tasks };
+  });
+
   return (
     <main className="flex flex-col gap-6 py-8">
       <CategoryManager categories={categoryOptions} />
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {DAY_ORDER.map((dayOfWeek) => {
-          const template = byDay.get(dayOfWeek);
-          const taskViewModels: TemplateTaskViewModel[] =
-            template?.tasks.map((task) => ({
-              id: task.id,
-              title: task.title,
-              categoryId: task.categoryId,
-              categoryName: task.category?.name ?? null,
-              subTasks: task.subTasks.map((sub) => ({
-                id: sub.id,
-                title: sub.title,
-              })),
-            })) ?? [];
-
-          return (
-            <DayColumn
-              key={dayOfWeek}
-              dayOfWeek={dayOfWeek}
-              tasks={taskViewModels}
-              categories={categoryOptions}
-            />
-          );
-        })}
-      </div>
+      <DayBoard days={days} categories={categoryOptions} />
     </main>
   );
 }

@@ -22,7 +22,29 @@ export function TaskList({
 }) {
   const [editMode, setEditMode] = useState(false);
   const [order, setOrder] = useState<TaskViewModel[]>(tasks);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [, startTransition] = useTransition();
+
+  // A task is expandable when it shows a chevron: it has subtasks, or we're in
+  // edit mode (where every row can reveal its add-subtask input).
+  const expandableIds = order
+    .filter((t) => t.subTasks.length > 0 || editMode)
+    .map((t) => t.id);
+  const allExpanded =
+    expandableIds.length > 0 && expandableIds.every((id) => expandedIds.has(id));
+
+  function toggleExpand(id: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setExpandedIds(allExpanded ? new Set() : new Set(expandableIds));
+  }
   const dayProgress = computeProgress(
     tasks.map((t) => ({
       isCompleted: t.isCompleted,
@@ -55,15 +77,26 @@ export function TaskList({
 
   return (
     <Card>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-black">Tasks</h2>
-        <button
-          type="button"
-          onClick={() => setEditMode((v) => !v)}
-          className="inline-flex shrink-0 items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition-colors duration-150 bg-transparent text-black border border-black/15 hover:bg-black/5"
-        >
-          {editMode ? "Done Editing" : "Edit Today's Plan"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {expandableIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="rounded-full border border-black/15 px-3 py-2 text-sm font-medium text-black/60 transition-colors duration-150 hover:bg-black/5"
+            >
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setEditMode((v) => !v)}
+            className="inline-flex items-center justify-center rounded-full border border-black/15 bg-transparent px-4 py-2 text-sm font-medium text-black transition-colors duration-150 hover:bg-black/5"
+          >
+            {editMode ? "Done Editing" : "Edit Today's Plan"}
+          </button>
+        </div>
       </div>
 
       {order.length === 0 && !editMode ? (
@@ -85,6 +118,8 @@ export function TaskList({
                 task={task}
                 editMode={editMode}
                 categories={categories}
+                expanded={expandedIds.has(task.id)}
+                onToggleExpand={() => toggleExpand(task.id)}
               />
             ))}
           </AnimatePresence>
@@ -98,6 +133,8 @@ export function TaskList({
                 task={task}
                 editMode={editMode}
                 categories={categories}
+                expanded={expandedIds.has(task.id)}
+                onToggleExpand={() => toggleExpand(task.id)}
               />
             ))}
           </AnimatePresence>
