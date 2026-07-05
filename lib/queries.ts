@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { startOfDay, dayOfWeekName } from "./date";
 import { computeProgress } from "./progress";
@@ -50,9 +51,20 @@ export async function getOrCreateDailyLog(date: Date): Promise<number> {
     return existing.id;
   }
 
-  const log = await prisma.dailyLog.create({ data: { date: day, progress: 0 } });
-  await copyTemplateIntoDay(log.id, day);
-  return log.id;
+  try {
+    const log = await prisma.dailyLog.create({ data: { date: day, progress: 0 } });
+    await copyTemplateIntoDay(log.id, day);
+    return log.id;
+  } catch (err) {
+    // A concurrent first-open of the same day may have created it between our
+    // findUnique and create — the unique `date` constraint (P2002) protects the
+    // data; just re-fetch the winner's row instead of failing.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const winner = await prisma.dailyLog.findUniqueOrThrow({ where: { date: day } });
+      return winner.id;
+    }
+    throw err;
+  }
 }
 
 export async function getDay(date: Date) {

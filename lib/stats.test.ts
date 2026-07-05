@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  bucketWeekly,
   bucketMonthlyGrid,
-  bucketYearly,
   bucketDaily,
   aggregateCategoryOverRange,
+  classifyDay,
+  computeStreaks,
+  rankTasks,
   type DayPoint,
 } from "./stats";
 
@@ -48,44 +49,67 @@ describe("bucketDaily", () => {
   });
 });
 
-describe("bucketWeekly", () => {
-  it("averages daily percents into ISO-week groups", () => {
-    // 2026-06-29 (Mon) .. 2026-07-05 (Sun) are all in ISO week 2026-W27.
-    // 2026-07-06 (Mon) starts ISO week 2026-W28.
-    const points: DayPoint[] = [
-      p("2026-06-29", 4, 2, 50),
-      p("2026-06-30", 4, 4, 100),
-      p("2026-07-05", 4, 0, 0),
-      p("2026-07-06", 4, 3, 75),
-    ];
-    const weeks = bucketWeekly(points);
-    expect(weeks).toEqual([
-      { week: "2026-W27", percent: 50 }, // avg(50, 100, 0) = 50
-      { week: "2026-W28", percent: 75 },
-    ]);
+describe("classifyDay", () => {
+  it("green at 100%, yellow at 50-99%, red below 50%", () => {
+    expect(classifyDay(p("d", 4, 4, 100))).toBe("green");
+    expect(classifyDay(p("d", 4, 3, 75))).toBe("yellow");
+    expect(classifyDay(p("d", 4, 2, 50))).toBe("yellow");
+    expect(classifyDay(p("d", 4, 1, 49))).toBe("red");
+    expect(classifyDay(p("d", 4, 0, 0))).toBe("red");
   });
 
-  it("returns an empty array for no points", () => {
-    expect(bucketWeekly([])).toEqual([]);
+  it("returns none for a day with no tasks or no data", () => {
+    expect(classifyDay(p("d", 0, 0, 0))).toBe("none");
+    expect(classifyDay(null)).toBe("none");
   });
 });
 
-describe("bucketYearly", () => {
-  it("groups points by calendar month and averages percent", () => {
+describe("computeStreaks", () => {
+  it("counts consecutive >=50% days back from today, plus the longest run", () => {
     const points: DayPoint[] = [
-      p("2026-01-01", 4, 4, 100),
-      p("2026-01-15", 4, 0, 0),
-      p("2026-02-01", 4, 2, 50),
+      p("2026-07-01", 4, 4, 100), // green
+      p("2026-07-02", 4, 2, 50), // yellow
+      p("2026-07-03", 4, 1, 25), // red -> breaks
+      p("2026-07-04", 4, 4, 100), // green
+      p("2026-07-05", 4, 3, 75), // yellow (today)
     ];
-    const months = bucketYearly(points);
-    expect(months).toEqual([
-      { month: "2026-01", percent: 50 }, // avg(100, 0)
-      { month: "2026-02", percent: 50 },
+    const { current, longest } = computeStreaks(points, "2026-07-05");
+    expect(current).toBe(2); // 07-04, 07-05
+    expect(longest).toBe(2); // 07-01..07-02 and 07-04..07-05 both length 2
+  });
+
+  it("uses yesterday as the anchor when today is not yet a streak day (grace)", () => {
+    const points: DayPoint[] = [
+      p("2026-07-03", 4, 4, 100),
+      p("2026-07-04", 4, 2, 50),
+      p("2026-07-05", 4, 1, 20), // today red -> grace, streak counts through yesterday
+    ];
+    expect(computeStreaks(points, "2026-07-05").current).toBe(2);
+  });
+
+  it("returns zero streaks with no qualifying days", () => {
+    expect(computeStreaks([], "2026-07-05")).toEqual({ current: 0, longest: 0 });
+  });
+});
+
+describe("rankTasks", () => {
+  it("groups by title and ranks worst-first", () => {
+    const ranked = rankTasks([
+      { title: "Vitamins", done: true },
+      { title: "Vitamins", done: true },
+      { title: "Study DSA", done: false },
+      { title: "Study DSA", done: true },
+      { title: "Meditate", done: false },
+    ]);
+    expect(ranked).toEqual([
+      { title: "Meditate", done: 0, total: 1, percent: 0 },
+      { title: "Study DSA", done: 1, total: 2, percent: 50 },
+      { title: "Vitamins", done: 2, total: 2, percent: 100 },
     ]);
   });
 
-  it("returns an empty array for no points", () => {
-    expect(bucketYearly([])).toEqual([]);
+  it("returns an empty array for no instances", () => {
+    expect(rankTasks([])).toEqual([]);
   });
 });
 

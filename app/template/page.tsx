@@ -3,6 +3,9 @@ import { getCategories } from "@/lib/queries";
 import { CategoryManager } from "@/components/template/CategoryManager";
 import { DayColumn, type TemplateTaskViewModel } from "@/components/template/DayColumn";
 
+// Reads live template/category state — render per request, not at build time.
+export const dynamic = "force-dynamic";
+
 const DAY_ORDER = [
   "Monday",
   "Tuesday",

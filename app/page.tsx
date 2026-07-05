@@ -6,6 +6,10 @@ import { CategorySummary } from "@/components/dashboard/CategorySummary";
 import { TaskList } from "@/components/dashboard/TaskList";
 import type { TaskViewModel } from "@/components/dashboard/TaskRow";
 
+// Depends on "today" and live DB state (and materializes today's log), so it
+// must render per request rather than be baked at build time.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const today = new Date();
   const day = await getDay(today);

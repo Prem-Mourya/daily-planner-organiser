@@ -31,53 +31,92 @@ function parseDateKey(key: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-function average(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return Math.round(nums.reduce((sum, n) => sum + n, 0) / nums.length);
+/** Adds `delta` calendar days to a "YYYY-MM-DD" key (UTC-safe), returning a new key. */
+function addDaysKey(key: string, delta: number): string {
+  const date = parseDateKey(key);
+  date.setUTCDate(date.getUTCDate() + delta);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}`;
+}
+
+export type DayStatus = "green" | "yellow" | "red" | "none";
+
+/**
+ * Traffic-light status for a day:
+ *   green  = every task done (100%)
+ *   yellow = at least half done (50%..99%)
+ *   red    = under half done (0%..49%), but the day HAD tasks
+ *   none   = no tasks tracked that day (or no data) — neutral, not counted
+ */
+export function classifyDay(point: { total: number; percent: number } | null): DayStatus {
+  if (!point || point.total === 0) return "none";
+  if (point.percent >= 100) return "green";
+  if (point.percent >= 50) return "yellow";
+  return "red";
+}
+
+/** A day counts toward a streak when it is green or yellow (>= 50% and had tasks). */
+function isStreakDay(point: DayPoint): boolean {
+  const status = classifyDay(point);
+  return status === "green" || status === "yellow";
 }
 
 /**
- * ISO-8601 week key ("YYYY-Www") for a date-key string.
- * ISO weeks start Monday and week 1 is the week containing the year's first Thursday.
+ * Current and longest streaks of consecutive calendar days at >= 50% completion.
+ * `current` counts back from today; if today isn't a streak day yet it counts back
+ * from yesterday (today is treated as still-in-progress, not a break).
  */
-function isoWeekKey(dateKey: string): string {
-  const date = parseDateKey(dateKey);
-  const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
-  date.setUTCDate(date.getUTCDate() - dayNum + 3); // shift to nearest Thursday
-  const isoYear = date.getUTCFullYear();
-  const firstThursday = new Date(Date.UTC(isoYear, 0, 4));
-  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
-  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
-  const week = 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 86400000));
-  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+export function computeStreaks(
+  points: DayPoint[],
+  todayKey: string
+): { current: number; longest: number } {
+  const streakKeys = new Set(points.filter(isStreakDay).map((pt) => pt.date));
+
+  let longest = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const key of [...streakKeys].sort()) {
+    run = prev !== null && addDaysKey(prev, 1) === key ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    prev = key;
+  }
+
+  let cursor = streakKeys.has(todayKey) ? todayKey : addDaysKey(todayKey, -1);
+  let current = 0;
+  while (streakKeys.has(cursor)) {
+    current += 1;
+    cursor = addDaysKey(cursor, -1);
+  }
+
+  return { current, longest };
 }
 
-/** Groups daily points into ISO-week buckets, averaging percent. Sorted chronologically. */
-export function bucketWeekly(points: DayPoint[]): { week: string; percent: number }[] {
-  const groups = new Map<string, number[]>();
-  for (const point of points) {
-    const key = isoWeekKey(point.date);
-    const list = groups.get(key) ?? [];
-    list.push(point.percent);
-    groups.set(key, list);
-  }
-  return [...groups.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([week, percents]) => ({ week, percent: average(percents) }));
-}
+export type TaskRank = { title: string; done: number; total: number; percent: number };
 
-/** Groups daily points by calendar month ("YYYY-MM"), averaging percent. Sorted chronologically. */
-export function bucketYearly(points: DayPoint[]): { month: string; percent: number }[] {
-  const groups = new Map<string, number[]>();
-  for (const point of points) {
-    const key = point.date.slice(0, 7); // "YYYY-MM"
-    const list = groups.get(key) ?? [];
-    list.push(point.percent);
-    groups.set(key, list);
+/**
+ * Ranks recurring tasks (grouped by title across all history) by completion rate.
+ * Each instance is one day the task appeared; `done` means it was fully complete
+ * that day. Sorted WORST-FIRST (lowest %, then fewest completions, then title) so
+ * the tasks you neglect most surface at the top.
+ */
+export function rankTasks(instances: { title: string; done: boolean }[]): TaskRank[] {
+  const groups = new Map<string, { done: number; total: number }>();
+  for (const inst of instances) {
+    const cur = groups.get(inst.title) ?? { done: 0, total: 0 };
+    cur.total += 1;
+    if (inst.done) cur.done += 1;
+    groups.set(inst.title, cur);
   }
   return [...groups.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([month, percents]) => ({ month, percent: average(percents) }));
+    .map(([title, { done, total }]) => ({
+      title,
+      done,
+      total,
+      percent: total === 0 ? 0 : Math.round((done / total) * 100),
+    }))
+    .sort(
+      (a, b) => a.percent - b.percent || a.done - b.done || (a.title < b.title ? -1 : 1)
+    );
 }
 
 /**
