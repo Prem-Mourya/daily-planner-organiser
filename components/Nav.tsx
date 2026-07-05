@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { logout } from "@/app/actions/auth";
 
 const LINKS = [
   { href: "/", label: "Today" },
@@ -11,8 +12,11 @@ const LINKS = [
   { href: "/notes", label: "Notes" },
 ] as const;
 
-export function Nav() {
+export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
   const pathname = usePathname();
+
+  // The login screen is pre-auth — no nav.
+  if (pathname === "/login") return null;
 
   return (
     <nav className="flex items-center gap-6 py-6">
@@ -34,6 +38,16 @@ export function Nav() {
           </Link>
         );
       })}
+      {authEnabled ? (
+        <form action={logout} className="ml-auto">
+          <button
+            type="submit"
+            className="text-sm text-black/40 transition-colors duration-150 hover:text-black"
+          >
+            Log out
+          </button>
+        </form>
+      ) : null}
     </nav>
   );
 }

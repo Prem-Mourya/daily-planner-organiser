@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <Nav />
+          <Nav authEnabled={!!process.env.APP_PASSWORD} />
           {children}
         </div>
       </body>
