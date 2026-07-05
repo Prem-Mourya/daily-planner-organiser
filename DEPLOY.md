@@ -9,31 +9,17 @@ Recommended stack: **Neon (Postgres) + Vercel**. Both have free tiers.
 
 ---
 
-## 1. 🧑 Create a hosted Postgres (Neon)
+## 1. Hosted Postgres (Neon) — ✅ DONE
 
-1. Sign up at https://neon.tech (free).
-2. Create a project → it gives you a connection string like:
-   `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require`
-3. Copy that string — that's your `DATABASE_URL`.
+A Neon Postgres project is created and its `DATABASE_URL` is in the (gitignored)
+`.env`. Keep that string safe — you'll paste the same one into Vercel.
 
-## 2. Switch Prisma to Postgres (code — I can do this)
+## 2. Prisma on Postgres — ✅ DONE
 
-In `prisma/schema.prisma`:
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-Then reset migrations for Postgres and create a fresh initial migration
-**against the Neon URL**:
-```bash
-rm -rf prisma/migrations                 # SQLite migrations don't apply to Postgres
-DATABASE_URL="<your-neon-url>" npx prisma migrate dev --name init
-```
-This creates the tables in Neon. (Your current local SQLite data — a couple of
-tasks/notes — won't carry over automatically; re-enter it in the deployed app,
-or ask me to write a one-off export/import.)
+`prisma/schema.prisma` uses `provider = "postgresql"` + `env("DATABASE_URL")`.
+The Postgres migration (`prisma/migrations/0_init`) has been applied to Neon and
+the base data (4 categories + 7 weekday templates) is seeded. The app has been
+run locally against Neon and connects fine. Nothing more to do here.
 
 ## 3. 🧑 Deploy to Vercel
 
