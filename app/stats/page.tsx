@@ -55,8 +55,9 @@ export default async function StatsPage() {
   const categories = await prisma.category.findMany({ orderBy: { order: "asc" } });
   const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
 
-  const now = new Date();
-  const streaks = computeStreaks(points, toKey(now));
+  const todayKey = toKey(new Date()); // app-timezone "today"
+  const [todayYear, todayMonth] = todayKey.split("-").map(Number);
+  const streaks = computeStreaks(points, todayKey);
   const ranks = rankTasks(taskInstances);
 
   return (
@@ -65,8 +66,8 @@ export default async function StatsPage() {
       <StreakHeader current={streaks.current} longest={streaks.longest} />
       <StatusCalendar
         points={points}
-        initialYear={now.getFullYear()}
-        initialMonth={now.getMonth()}
+        initialYear={todayYear}
+        initialMonth={todayMonth - 1}
       />
       <TaskRanking ranks={ranks} />
       <CategoryBreakdownPanel rangeTasks={rangeTasks} categories={categoryOptions} />
