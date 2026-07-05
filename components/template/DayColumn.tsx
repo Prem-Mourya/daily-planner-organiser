@@ -14,6 +14,7 @@ import {
   deleteTemplateSubTask,
   reorderTemplateTasks,
   reorderTemplateSubTasks,
+  resetTemplateDay,
 } from "@/app/actions/template";
 
 export type TemplateSubTaskViewModel = {
@@ -385,12 +386,18 @@ export function DayColumn({
 }) {
   const [order, setOrder] = useState<TemplateTaskViewModel[]>(tasks);
   const [, startTransition] = useTransition();
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   // Resync local order state whenever the server-provided task list changes
   // (e.g. after add/delete/reorder revalidation), avoiding Reorder staleness.
   useEffect(() => {
     setOrder(tasks);
   }, [tasks]);
+
+  // Drop the pending confirm if the day is emptied by any path.
+  useEffect(() => {
+    if (order.length === 0) setConfirmingReset(false);
+  }, [order.length]);
 
   function handleReorder(next: TemplateTaskViewModel[]) {
     setOrder(next);
@@ -399,9 +406,32 @@ export function DayColumn({
     });
   }
 
+  function handleReset() {
+    if (!confirmingReset) {
+      setConfirmingReset(true);
+      return;
+    }
+    setConfirmingReset(false);
+    startTransition(async () => {
+      await resetTemplateDay(dayOfWeek);
+    });
+  }
+
   return (
     <Card>
-      <h2 className="text-sm font-semibold text-black">{dayOfWeek}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-black">{dayOfWeek}</h2>
+        {order.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleReset}
+            onBlur={() => setConfirmingReset(false)}
+            className="shrink-0 rounded-full border border-black/15 px-2.5 py-1 text-xs font-medium text-black/60 transition-colors duration-150 hover:bg-black/5"
+          >
+            {confirmingReset ? "Confirm reset?" : "Reset"}
+          </button>
+        ) : null}
+      </div>
 
       {order.length === 0 ? (
         <p className="mt-4 text-sm text-black/40">No tasks yet for {dayOfWeek}.</p>

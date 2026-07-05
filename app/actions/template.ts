@@ -68,6 +68,16 @@ export async function deleteTemplateSubTask(id: number): Promise<void> {
   revalidatePath("/template");
 }
 
+export async function resetTemplateDay(dayOfWeek: string): Promise<void> {
+  const template = await prisma.weeklyTemplate.findUniqueOrThrow({
+    where: { dayOfWeek },
+    select: { id: true },
+  });
+  // Deletes every task for this weekday; subtasks cascade via the schema.
+  await prisma.templateTask.deleteMany({ where: { templateId: template.id } });
+  revalidatePath("/template");
+}
+
 export async function reorderTemplateTasks(orderedIds: number[]): Promise<void> {
   await prisma.$transaction(
     orderedIds.map((id, index) =>

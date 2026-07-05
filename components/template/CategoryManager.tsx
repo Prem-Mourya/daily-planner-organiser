@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Reorder, useDragControls } from "framer-motion";
+import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
 import { Card } from "@/components/ui/Card";
 import {
   addCategory,
@@ -145,6 +145,7 @@ function AddCategoryInline() {
 export function CategoryManager({ categories }: { categories: CategoryViewModel[] }) {
   const [order, setOrder] = useState<CategoryViewModel[]>(categories);
   const [isPending, startTransition] = useTransition();
+  const [collapsed, setCollapsed] = useState(false);
 
   // Resync local order state whenever the server-provided category list
   // changes (e.g. after add/delete/rename revalidation), mirroring the
@@ -162,25 +163,61 @@ export function CategoryManager({ categories }: { categories: CategoryViewModel[
 
   return (
     <Card>
-      <h2 className="text-sm font-semibold text-black">Categories</h2>
-
-      {order.length === 0 ? (
-        <p className="mt-4 text-sm text-black/40">No categories yet. Add one below.</p>
-      ) : (
-        <Reorder.Group
-          as="ul"
-          axis="y"
-          values={order}
-          onReorder={handleReorder}
-          className="mt-2 flex flex-col"
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <h2 className="text-sm font-semibold text-black">Categories</h2>
+        <span className="text-xs text-black/40">{order.length}</span>
+        <motion.span
+          animate={{ rotate: collapsed ? 0 : 90 }}
+          transition={{ duration: 0.2 }}
+          className="ml-auto flex h-5 w-5 items-center justify-center text-black/40"
         >
-          {order.map((category) => (
-            <CategoryRow key={category.id} category={category} disabled={isPending} />
-          ))}
-        </Reorder.Group>
-      )}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </motion.span>
+      </button>
 
-      <AddCategoryInline />
+      <AnimatePresence initial={false}>
+        {!collapsed ? (
+          <motion.div
+            key="category-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="overflow-hidden"
+          >
+            {order.length === 0 ? (
+              <p className="mt-4 text-sm text-black/40">No categories yet. Add one below.</p>
+            ) : (
+              <Reorder.Group
+                as="ul"
+                axis="y"
+                values={order}
+                onReorder={handleReorder}
+                className="mt-2 flex flex-col"
+              >
+                {order.map((category) => (
+                  <CategoryRow key={category.id} category={category} disabled={isPending} />
+                ))}
+              </Reorder.Group>
+            )}
+
+            <AddCategoryInline />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </Card>
   );
 }

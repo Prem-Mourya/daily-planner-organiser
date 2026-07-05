@@ -3,35 +3,55 @@ import { prisma } from "./db";
 import { startOfDay, dayOfWeekName } from "./date";
 import { computeProgress } from "./progress";
 
-export async function getOrCreateDailyLog(date: Date): Promise<number> {
-  const day = startOfDay(date);
-  const existing = await prisma.dailyLog.findUnique({ where: { date: day } });
-  if (existing) return existing.id;
-
+/**
+ * Copies the weekday template's tasks/subtasks into a day's instance rows.
+ * Caller guarantees the day is currently empty, so this never duplicates.
+ */
+async function copyTemplateIntoDay(dailyLogId: number, day: Date): Promise<void> {
   const template = await prisma.weeklyTemplate.findUnique({
     where: { dayOfWeek: dayOfWeekName(day) },
     include: { tasks: { include: { subTasks: true }, orderBy: { order: "asc" } } },
   });
+  if (!template) return;
+
+  for (const tt of template.tasks) {
+    await prisma.task.create({
+      data: {
+        dailyLogId,
+        categoryId: tt.categoryId,
+        title: tt.title,
+        order: tt.order,
+        subTasks: {
+          create: tt.subTasks
+            .sort((a, b) => a.order - b.order)
+            .map((st) => ({ title: st.title, order: st.order })),
+        },
+      },
+    });
+  }
+}
+
+export async function getOrCreateDailyLog(date: Date): Promise<number> {
+  const day = startOfDay(date);
+  const existing = await prisma.dailyLog.findUnique({
+    where: { date: day },
+    include: { _count: { select: { tasks: true } } },
+  });
+
+  if (existing) {
+    // Auto-fill an EMPTY day from its weekday template. A day is only ever
+    // materialized while it has zero tasks, so this can never clobber user
+    // edits — but it lets a plan authored after the (empty) day was first
+    // opened still show up. Tradeoff: clearing all of a day's tasks and
+    // reopening re-pulls the template.
+    if (existing._count.tasks === 0) {
+      await copyTemplateIntoDay(existing.id, day);
+    }
+    return existing.id;
+  }
 
   const log = await prisma.dailyLog.create({ data: { date: day, progress: 0 } });
-
-  if (template) {
-    for (const tt of template.tasks) {
-      await prisma.task.create({
-        data: {
-          dailyLogId: log.id,
-          categoryId: tt.categoryId,
-          title: tt.title,
-          order: tt.order,
-          subTasks: {
-            create: tt.subTasks
-              .sort((a, b) => a.order - b.order)
-              .map((st) => ({ title: st.title, order: st.order })),
-          },
-        },
-      });
-    }
-  }
+  await copyTemplateIntoDay(log.id, day);
   return log.id;
 }
 
