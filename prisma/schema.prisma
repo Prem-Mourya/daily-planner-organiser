@@ -69,3 +69,28 @@ model SubTask {
   isCompleted Boolean @default(false)
   order       Int     @default(0)
 }
+
+model Note {
+  id        Int        @id @default(autoincrement())
+  title     String     @default("Untitled")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     NoteItem[]
+}
+
+// A note's body is a tree of items (nested outline). Each item is either a
+// heading (isCheckbox=false) or a trackable checkbox (isCheckbox=true). IDs are
+// client-generated strings so the editor can build/rearrange the tree locally
+// and persist it in one bulk upsert.
+model NoteItem {
+  id         String     @id
+  noteId     Int
+  note       Note       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     NoteItem?  @relation("NoteItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   NoteItem[] @relation("NoteItemChildren")
+  content    String     @default("")
+  isCheckbox Boolean    @default(true)
+  isChecked  Boolean    @default(false)
+  order      Int        @default(0)
+}

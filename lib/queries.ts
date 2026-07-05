@@ -84,6 +84,35 @@ export function getCategories() {
   return prisma.category.findMany({ orderBy: { order: "asc" } });
 }
 
+/** Notes for the list view (most-recently-edited first), with items for progress + search. */
+export function getNotes() {
+  return prisma.note.findMany({
+    orderBy: { updatedAt: "desc" },
+    include: {
+      items: { select: { content: true, isCheckbox: true, isChecked: true } },
+    },
+  });
+}
+
+/** A single note with its full item set (for the editor). */
+export function getNote(id: number) {
+  return prisma.note.findUnique({
+    where: { id },
+    include: {
+      items: {
+        select: {
+          id: true,
+          parentId: true,
+          content: true,
+          isCheckbox: true,
+          isChecked: true,
+          order: true,
+        },
+      },
+    },
+  });
+}
+
 export async function recomputeAndSaveProgress(dailyLogId: number): Promise<number> {
   const log = await prisma.dailyLog.findUniqueOrThrow({
     where: { id: dailyLogId },

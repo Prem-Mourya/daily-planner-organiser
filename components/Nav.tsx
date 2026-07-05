@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "Today" },
   { href: "/template", label: "Weekly" },
   { href: "/stats", label: "Stats" },
+  { href: "/notes", label: "Notes" },
 ] as const;
 
 export function Nav() {
@@ -16,7 +17,8 @@ export function Nav() {
   return (
     <nav className="flex items-center gap-6 py-6">
       {LINKS.map((link) => {
-        const isActive = pathname === link.href;
+        const isActive =
+          link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link
             key={link.href}
