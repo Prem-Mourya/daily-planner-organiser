@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getOrCreateDailyLog, recomputeAndSaveProgress } from "@/lib/queries";
+import { fromKey } from "@/lib/date";
 
 export async function toggleTask(taskId: number, checked: boolean): Promise<void> {
   const task = await prisma.task.update({
@@ -33,7 +34,7 @@ export async function addTask(
   title: string,
   categoryId: number | null
 ): Promise<void> {
-  const dailyLogId = await getOrCreateDailyLog(new Date(dateKey));
+  const dailyLogId = await getOrCreateDailyLog(fromKey(dateKey));
   const count = await prisma.task.count({ where: { dailyLogId } });
   await prisma.task.create({
     data: {
