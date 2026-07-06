@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { bucketMonthlyGrid, classifyDay, type DayPoint, type DayStatus } from "@/lib/stats";
 
@@ -97,15 +98,34 @@ export function StatusCalendar({
           const title = point
             ? `${point.date} — ${point.completed}/${point.total} (${point.percent}%)`
             : "No tasks";
+          const cellStyle = {
+            backgroundColor: STATUS_FILL[status],
+            color: cellTextColor(status),
+          };
+
+          if (!point) {
+            return (
+              <div
+                key={i}
+                title={title}
+                className="flex aspect-square items-center justify-center rounded-md text-xs font-medium"
+                style={cellStyle}
+              >
+                {dayNum}
+              </div>
+            );
+          }
+
           return (
-            <div
+            <Link
               key={i}
+              href={`/stats/${point.date}`}
               title={title}
-              className="flex aspect-square items-center justify-center rounded-md text-xs font-medium"
-              style={{ backgroundColor: STATUS_FILL[status], color: cellTextColor(status) }}
+              className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-transform duration-150 hover:scale-105"
+              style={cellStyle}
             >
               {dayNum}
-            </div>
+            </Link>
           );
         })}
       </div>

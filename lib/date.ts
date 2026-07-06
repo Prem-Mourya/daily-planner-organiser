@@ -1,9 +1,11 @@
-// "Which day is it" logic runs in a FIXED timezone (default Asia/Kolkata), NOT
-// the server's. A UTC host like Vercel/AWS Lambda (which won't let you set the
-// TZ env var — it's reserved) would otherwise compute "today" and the weekday
-// hours behind you. Override the zone with APP_TIMEZONE if you relocate.
+// "Which day is it" logic runs in a FIXED timezone, NOT the server's. A UTC
+// host like Vercel/AWS Lambda (TZ env var is reserved there) would otherwise
+// compute "today" and the weekday hours off from you. Default is UTC: day
+// rolls over at 5:30am IST, so a late-night study session (up to ~2am IST)
+// stays logged on the same day instead of splitting at midnight IST. Override
+// with APP_TIMEZONE if this doesn't fit.
 
-const APP_TZ = process.env.APP_TIMEZONE || "Asia/Kolkata";
+const APP_TZ = process.env.APP_TIMEZONE || "UTC";
 
 const partsFmt = new Intl.DateTimeFormat("en-US", {
   timeZone: APP_TZ,
@@ -17,6 +19,13 @@ const partsFmt = new Intl.DateTimeFormat("en-US", {
 });
 
 const weekdayFmt = new Intl.DateTimeFormat("en-US", { timeZone: APP_TZ, weekday: "long" });
+
+const longDateFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: APP_TZ,
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 
 type Parts = { year: number; month: number; day: number; hour: number; minute: number; second: number };
 
@@ -66,4 +75,14 @@ export function toKey(instant: Date): string {
 export function fromKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
   return zonedMidnightUtc(y, m, d);
+}
+
+/**
+ * "Weekday, Month Day" (e.g. "Tuesday, July 7") in the app timezone. Any UI
+ * showing a date label MUST use this, not `Date.toLocaleDateString` directly —
+ * that reads the server's raw clock and can disagree with `dayOfWeekName`/
+ * `toKey` near a UTC day boundary (exactly the bug this fixes).
+ */
+export function formatLongDate(instant: Date): string {
+  return longDateFmt.format(instant);
 }
